@@ -1,0 +1,23 @@
+[package]
+name = "notastic"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = {  version = "1.0.203", features = ["derive"] }
+serde_jsonrc = "0.1.0"
+qol = { version = "0.1.11", git = "https://github.com/DrAlta/rust_quality_of_life.git"}
+lexical-sort = "0.3.1"
+
+[dependencies.uuid]
+version = "1.10.0"
+features = [
+    "v4",                # Lets you generate random UUIDs
+    "fast-rng",          # Use a faster (but still sufficiently random) RNG
+    "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
+    "serde",
+]
+
+[features]
+default = ["error"]
+error = []
