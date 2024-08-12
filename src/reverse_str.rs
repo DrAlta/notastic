@@ -7,12 +7,10 @@ impl<'a> std::cmp::PartialOrd for ReverseStr<'a> {
     }
 }
 impl<'a> std::cmp::Ord for ReverseStr<'a> {
-    
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        lexical_sort::natural_lexical_cmp(&self.0, &other.0)
+        lexical_sort::natural_lexical_cmp(self.0, other.0)
     }
 }
-
 
 impl<'a> std::fmt::Display for ReverseStr<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

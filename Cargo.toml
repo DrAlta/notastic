@@ -8,6 +8,7 @@ serde = {  version = "1.0.203", features = ["derive"] }
 serde_jsonrc = "0.1.0"
 qol = { version = "0.1.11", git = "https://github.com/DrAlta/rust_quality_of_life.git"}
 lexical-sort = "0.3.1"
+iced = "0.12.1"
 
 [dependencies.uuid]
 version = "1.10.0"
@@ -19,5 +20,7 @@ features = [
 ]
 
 [features]
-default = ["error"]
+default = ["error", "trace"]
 error = []
+trace = []
+cautiou_load_note = []

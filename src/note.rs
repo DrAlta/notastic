@@ -4,7 +4,6 @@ use serde::Serialize;
 
 use crate::json_note::JsonNote;
 
-
 #[derive(Debug, PartialEq, Serialize)]
 pub struct Note {
     //pub uuid: String,
@@ -16,10 +15,14 @@ impl Note {
     pub fn new(
         //uuid: String,
         title: String,
-        body: String, 
-        body_history: Vec<String>
+        body: String,
+        body_history: Vec<String>,
     ) -> Self {
-        Self { /*uuid,*/ title, body, body_history}
+        Self {
+            /*uuid,*/ title,
+            body,
+            body_history,
+        }
     }
 }
 
