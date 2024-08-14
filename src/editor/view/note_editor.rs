@@ -14,7 +14,7 @@ impl Notastic {
         let editor_title = text_input("enter note title here", title)
             .on_input(Message::TitleChanged);
 
-        let save_button = button(text("Save")).on_press(Message::SaveNote);
+        let save_button: button::Button<Message> = button(text("Save")).on_press(Message::SaveNote);
 
         let title_bar = row!(editor_title, save_button);
 

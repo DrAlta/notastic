@@ -8,4 +8,5 @@ use crate::Note;
 pub struct Notastic {
     pub notes: HashMap<Uuid, Note>,
     pub note_editor: Option<(Uuid, String, text_editor::Content)>,
+    pub filter_title_open: String,
 }

@@ -21,6 +21,9 @@ pub use note::Note;
 mod reverse_str;
 pub use reverse_str::ReverseStr;
 
+mod save_notes_to_json;
+pub use save_notes_to_json::save_notes_to_json;
+
 const SPACING: u16 = 10;
 
 fn main() {
