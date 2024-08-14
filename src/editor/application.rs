@@ -178,8 +178,13 @@ impl Application for Notastic {
 
     fn view(&self) -> iced::Element<'_, Self::Message> {
         let nav = self.nav_veiw();
-        let note_editor = self.note_editor_veiw();
-        row!(nav, note_editor).into()
+
+        let right_side = if self.note_editor.is_some() {
+            self.note_editor_veiw()
+        } else {
+            self.note_veiwer_veiw()
+        };
+        row!(nav, right_side).into()
     }
 
     fn theme(&self) -> iced::Theme {

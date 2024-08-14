@@ -1,13 +1,12 @@
 use iced::{
-    widget::{button, column, container, horizontal_space, row, text, text_editor, text_input},
-    Length,
+    widget::{button, column, container, horizontal_space, row, text, text_editor, text_input}, Length
 };
 
 use crate::{Message, Notastic, SPACING};
 
 impl Notastic {
     pub fn note_editor_veiw(&self) -> container::Container<Message> {
-        let Some((_uuid, title, note_body)) = &self.note_editor else {
+        let Some((_uuid, title, note_body)) = &self.note_editor else {  
             return container::Container::new(iced::widget::Space::new(Length::Fill, Length::Fill));
         };
 
