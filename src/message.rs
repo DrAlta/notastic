@@ -9,8 +9,8 @@ pub enum Message {
     ExportButtonPressed,
     ExportJson(String),
     FilterCreateChanged(String),
-    InportButtonPressed,
-    InportJson(String),
+    ImportButtonPressed,
+    ImportJson(String),
     SaveNote,
     TitleChanged(String),
 }

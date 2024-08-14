@@ -113,16 +113,16 @@ impl Sandbox for Notastic {
             Message::FilterCreateChanged(title) => {
                 self.filter_title_open = title;       
             },
-            Message::InportButtonPressed => {
+            Message::ImportButtonPressed => {
                 self.update(
-                    Message::InportJson("./save_test_notes.json".to_owned())
+                    Message::ImportJson("./save_test_notes.json".to_owned())
                 )
             },
-            Message::InportJson(path) => {
+            Message::ImportJson(path) => {
                 let Err(err) = crate::load_notes_from_json(path) else {
                     return;
                 };
-                logy!("error", "failed to inport notes JSON with:{err}");
+                logy!("error", "failed to import notes JSON with:{err}");
             },
             Message::SaveNote => {
                 let Some((uuid, title, editor_body)) = &mut self.note_editor else {

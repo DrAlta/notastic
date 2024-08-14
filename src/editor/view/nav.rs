@@ -20,9 +20,9 @@ impl Notastic {
 
         let note_list = Column::with_children(children);
 
-        let inport_button = button(text("Inport")).on_press(Message::InportButtonPressed);
-        let export_button = button(text("Export")).on_press(Message::InportButtonPressed);
-        let save_load_bar = row!(inport_button, export_button);
+        let import_button = button(text("Import")).on_press(Message::ImportButtonPressed);
+        let export_button = button(text("Export")).on_press(Message::ImportButtonPressed);
+        let save_load_bar = row!(import_button, export_button);
 
         column!(filter_create_bar, note_list, save_load_bar)
     }
