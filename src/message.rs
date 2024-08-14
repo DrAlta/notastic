@@ -1,5 +1,9 @@
+use std::{collections::HashMap, sync::Arc};
+
 use iced::{widget::text_editor, Point};
 use uuid::Uuid;
+
+use crate::Note;
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -14,7 +18,7 @@ pub enum Message {
     ExportJson(String),
     FilterCreateChanged(String),
     ImportButtonPressed,
-    ImportJson(String),
+    LoadNotes(Result<Arc<HashMap<Uuid, Note>>, String>),
     SaveNote,
     TitleChanged(String),
 }

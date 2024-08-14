@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use iced::{
     executor, widget::{row, text_editor}, Application, Command, Theme
@@ -7,38 +7,6 @@ use qol::logy;
 use uuid::Uuid;
 
 use crate::{DragState, Message, Notastic, Note};
-
-impl Notastic {
-    pub fn cautions_load_note_in_editor(&mut self, uuid: Uuid) -> bool {
-        if let Some((old_uuid, _, note_body)) = &self.note_editor {
-            if let Some(old_note) = self.notes.get(&old_uuid) {
-                let new_body = note_body.text();
-                let new = new_body.trim();
-                let old = old_note.body.trim();
-                if old != new {
-                    logy!(
-                        "cautiou_load_note",
-                        "{:?}\n!=\n{:?}",
-                        note_body.text(),
-                        old_note.body
-                    );
-                    return false;
-                }
-            }
-        };
-        match self.notes.get(&uuid) {
-            Some(note) => {
-                self.note_editor = Some((
-                    uuid,
-                    note.title.clone(),
-                    text_editor::Content::with_text(&note.body),
-                ));
-                true
-            }
-            None => false,
-        }
-    }
-}
 
 impl Application for Notastic {
     type Message = Message;
@@ -149,18 +117,21 @@ impl Application for Notastic {
                 self.filter_title_open = title;
             }
             Message::ImportButtonPressed => {
-                return self.update(Message::ImportJson("./notes.json".to_owned()));
+                return Command::perform(Notastic::pick_file(), Message::LoadNotes)
             }
-            Message::ImportJson(path) => {
-                logy!("trace", "importing from {path}");
-                match crate::load_notes_from_json(path) {
-                    Ok(ok) => {
-                        self.notes = ok;
-                    }
-                    Err(err) => {
-                        logy!("error", "failed to import notes JSON with:{err}")
-                    }
+            Message::LoadNotes(Ok(mut notes)) => {
+                logy!("trace", "trying to import notes");
+                let Some(x) = Arc::get_mut(&mut notes) else {
+                    return Command::none();
                 };
+                let ugly_hack = HashMap::new();
+                let notes = std::mem::replace(x, ugly_hack);
+                self.notes = notes;
+                logy!("trace", "successfully imported notes");
+                
+            }
+            Message::LoadNotes(Err(err)) => {
+                logy!("error", "loaded to selec file ot load with {err}");
             }
             Message::SaveNote => {
                 let Some((uuid, title, editor_body)) = &mut self.note_editor else {

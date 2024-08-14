@@ -10,6 +10,7 @@ qol = { version = "0.1.11", git = "https://github.com/DrAlta/rust_quality_of_lif
 lexical-sort = "0.3.1"
 iced = "0.12.1"
 fs-err = "2.11.0"
+rfd = "0.14.1"
 
 [dependencies.uuid]
 version = "1.10.0"
