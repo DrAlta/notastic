@@ -7,7 +7,7 @@ use iced::{
 use qol::logy;
 use uuid::Uuid;
 
-use crate::{Message, Notastic, Note};
+use crate::{DragState, Message, Notastic, Note};
 
 impl Notastic {
     pub fn cautions_load_note_in_editor(&mut self, uuid: Uuid) -> bool {
@@ -54,6 +54,8 @@ impl Sandbox for Notastic {
         };
 
         Self {
+            drag_state: DragState::NotDragging,
+            nav_size: 200.0,
             notes,
             note_editor: None,
             filter_title_open: "".to_owned(),
@@ -96,6 +98,28 @@ impl Sandbox for Notastic {
                     ))
                 }
             }
+            Message::DragEnd => {
+                logy!("trace", "dragging end");
+                self.drag_state = DragState::NotDragging;
+            },
+            Message::DragStart => {
+                if let DragState::NotDragging = self.drag_state {
+                    logy!("trace", "starting drag");
+                    self.drag_state = DragState::StartDraging;
+                }
+            },
+            Message::Dragging(point) => {
+                match self.drag_state {
+                    DragState::NotDragging => (),
+                    DragState::StartDraging => {
+                        self.drag_state = DragState::Dragging(point.x);
+                    },
+                    DragState::Dragging(origin) => {
+                        let delta = point.x - origin;
+                        self.nav_size += delta;
+                    },
+                }
+            },
             Message::Edit(action) => {
                 println!("got edit message");
                 let Some((_, _, note_body)) = &mut self.note_editor else {

@@ -26,6 +26,12 @@ pub use save_notes_to_json::save_notes_to_json;
 
 const SPACING: u16 = 10;
 
+pub enum DragState {
+    NotDragging,
+    StartDraging,
+    Dragging(f32),
+}
+
 fn main() {
     println!("{:?}", <Notastic as Sandbox>::run(Settings::default()));
 }
