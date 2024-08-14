@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Notastic Web Edition</title>
+</head>
+<style>
+  /* Create two columns/boxes that floats next to each other */
+#app {
+  display: flex;
+  height: 100%;
+
+}
+nav {
+  height: 100%;
+  background: #ccc;
+}
+#pageList {
+  display: flex;
+  flex-direction: column;
+}
+#editor {
+  height: 100%;
+  width: 100%;
+  background: #0cc;
+}
+#noteBody {
+width:100%;
+height: 90%;
+}
+</style>
+<body>
+  <div id="app">
+    <nav id ="mainMenu">
+      <span>
+        <button id="createMemo" type="button" onclick="filterPageList()">CreateMemo</button>
+      </span>
+      <br/>
+      <span>
+        <input id="titleInput" type="text"></input>
+        <button id="createNote" type="button" onclick="createNote()">Create</button>
+      </span>
+      <span id="pageList">
+      </span>
+      <br/>
+      <span>
+        <input id="upload" type="file" accept="application/json" name="files" size=30>
+        <button id="export" type="button" onclick="saveAsJSonFile()">Export</button>
+
+      </span>
+    </nav>
+    <article id= "editor">
+      <input id="editorTitle" type="text"></input>
+      <br/>
+      <textarea id="noteBody"></textarea>
+      <br/>
+      <span>
+        <button id="save" type="button" onclick="saveNote()">Save</button>
+        <span id="uuid"></span>
+      </span>
+    </article>
+  </div>
+</body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+ 
+<script>
+const titleInputEl = document.getElementById("titleInput"); 
+const pageListEl = document.getElementById("pageList");
+
+const textarea = document.getElementById("noteBody");
+const editorEl = document.getElementById("editor");
+const editerTitleEl = document.getElementById("editorTitle");
+const noteBodyEl = document.getElementById("noteBody");
+const uuidEl = document.getElementById("uuid");
+
+
+//var db = new Object();
+
+var noteBodyAsLoaded = null;
+///////////////////////////////////////////////////////////////////////////////
+// check for web storage
+if (typeof(Storage) !== "undefined") {
+  // Code for localStorage/sessionStorage.
+} else {
+  exitApp();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// note untils
+function findPageByTitle(title) {
+  for ( var i = 0, len = localStorage.length; i < len; ++i ) {
+    let key = localStorage.key( i );
+    if (JSON.parse(localStorage.getItem( key )).title == title ) {
+      return key;
+    }
+  }
+  return null;
+}
+
+function savePage(uuid, title, body) {
+  let note = localStorage.getItem(uuid);
+  if (note == null) {
+    console.log("saving new page");
+    localStorage.setItem(uuid, JSON.stringify({
+      'uuid': uuid,
+      'title': title,
+      'body': body,
+      'bodyHistory': new Array(),
+    }));
+  } else {
+    note = JSON.parse(note);
+    note.title = title;
+    if(Array.isArray(note.bodyHistory)) {
+      note.bodyHistory.push(note.body);
+    } else {
+      note.bodyHistory = [note.body,];
+    }
+    note.body = body;
+    localStorage.setItem(uuid, JSON.stringify(note));
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// Utility
+
+function saveAsJSonFile() {
+  if (localStorage.length == 0) {
+    console.log("no notes to save");
+    return;
+  };
+  var data = new Object();
+  for ( var i = 0, len = localStorage.length; i < len; ++i ) {
+    let uuid = localStorage.key( i );
+    console.log("saveing note:", uuid);
+    data[uuid] = localStorage.getItem( uuid );
+  }
+
+  var blob = new Blob([JSON.stringify(data)], { type: "text/plain;charset=utf-8" });
+  saveAs(blob, "notes.json");
+}
+///////////////////////////////////////////////////////////////////////////////
+/// UI
+
+function handle_file_select( evt ) {
+  console.info ( "[Event] file chooser" );
+
+  let fl_files = document.getElementById("upload").files; // JS FileList object
+
+  // use the 1st file from the list
+  let fl_file = fl_files[0];
+
+  let reader = new FileReader(); // built in API
+
+  let load_notes_from_file = ( e ) => { // set the contents of the <textarea>
+    console.info( '. . got: ', e.target.result.length, e );
+    let data = JSON.parse(e.target.result);
+    for (const uuid in data) {
+      if (data.hasOwnProperty(uuid)) {
+        localStorage.setItem(uuid, JSON.stringify(data[uuid]))
+      }
+    }
+    populatePageList()
+
+  };
+  let display_file = ( e ) => { // set the contents of the <textarea>
+    console.info( '. . got: ', e.target.result.length, e );
+    editorEl.style.display = "block";
+   
+    textarea.value = e.target.result;
+  };
+
+  let on_reader_load = ( fl ) => {
+      console.info( '. file reader load', fl );
+      return load_notes_from_file; // a function
+      };
+
+  // Closure to capture the file information.
+  reader.onload = on_reader_load( fl_file );
+
+  // Read the file as text.
+  reader.readAsText( fl_file );
+}
+
+function filterPageList() {
+  const re = new RegExp(titleInputEl.value);
+
+  var children = pageListEl.childNodes;
+  children.forEach(function(item) {
+    let title = item.innerText;
+    if (re.test(title)) {
+      item.style.display = "block";
+    } else {
+      item.style.display = "none";
+    }
+  });
+}
+
+function cautiousLoadNote(uuid) {
+  if (editorEl.style.display == "none") {
+    let note = localStorage.getItem(uuid);
+    if (note == null) {
+      console.log("failed to find note:", uuid);
+      return false;
+    }
+    note = JSON.parse(note);
+    console.log("loading note", note.title);
+    uuidEl.innerText = note.uuid;
+    editerTitleEl.value = note.title;
+    loadBodyInEditor(note.body);
+    // show the editor
+    editorEl.style.display = "block";
+  } else {
+    console.log("editor already open");
+  }
+  return true;
+}
+
+function loadBodyInEditor(body) {
+  noteBodyEl.value = body;
+  noteBodyAsLoaded = body;
+
+}
+
+function populatePageList(){
+  // get read of the existing list
+  pageListEl.innerHTML = "";
+
+  // add the items
+  var list = new Array();
+  for ( var i = 0, len = localStorage.length; i < len; ++i ) {
+    let note = JSON.parse(localStorage.getItem( localStorage.key( i ) ));
+//    console.log(note);
+    list.push({'title': note.title, 'uuid': note.uuid})
+
+  }
+
+  list.sort(function (a, b) {
+    return ('' + a.title).localeCompare(b.title);
+  });
+
+  list.forEach(function (note) {
+    const ely = document.createElement("span");
+    ely.innerText = note.title;
+    ely.addEventListener("click", function() {
+      cautiousLoadNote(note.uuid)
+    });
+    pageListEl.appendChild(ely);
+  })
+
+}
+
+function createNote() {
+  var title = titleInputEl.value;
+  let already = findPageByTitle(title);
+  if (already == null) {
+    let uuid = crypto.randomUUID().toString();
+    // make sure we don't get a dup uuid
+    while (!(localStorage.getItem(uuid) == null)) {
+      uuid = crypto.randomUUID().toString();
+    }
+    console.log("new note with id:", uuid);
+
+    uuidEl.innerText = uuid;
+    editerTitleEl.value = title;
+    loadBodyInEditor("");
+  } else {
+    let note = JSON.parse(localStorage.getItem(already));
+    console.log("found already existing note", note);
+    uuidEl.innerText = note.uuid;
+    editerTitleEl.value = title;
+    loadBodyInEditor(note.body);
+  }
+  // show the editor
+  editorEl.style.display = "block";
+}
+
+
+function saveNote() {
+  let body = textarea.value;
+  if (  noteBodyAsLoaded == body) {
+    console.log("no change to note")
+    noteBodyAsLoaded = null;
+    closeEditor();
+    return;
+  } else {
+    console.log("note changes going thru with save");
+    let uuid = uuidEl.innerText;
+    let title = editerTitleEl.value;
+
+    savePage(uuid, title, body)
+
+    noteBodyAsLoaded = null;
+
+    closeEditor();
+
+    populatePageList()
+  }
+}
+function closeEditor() {
+  if (noteBodyAsLoaded == null) {
+    editorEl.style.display = "none";
+  };
+
+}
+function exitApp() {
+    // display a notice that there is no web storage
+    elem = document.createElement("div");
+  elem.id = 'myID';
+  elem.innerHTML = ' No web storage ';
+  document.body.insertBefore(elem,document.body.childNodes[0]);
+
+  // hide the textarea. this shouldb e replaces with hiding a div with the interface in it
+  document.getElementById("app").style.display = "none";
+
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// event handlers
+
+document.getElementById( 'upload' ).addEventListener( 'change', handle_file_select, false );
+
+
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.key === 's') {
+    // Prevent the Save dialog to open
+    e.preventDefault();
+    saveNote();
+  }
+});
+
+
+textarea.addEventListener("keydown", (e) => {
+  if (e.keyCode === 9) {
+    e.preventDefault();
+
+    textarea.setRangeText(
+      "    ",
+      textarea.selectionStart,
+      textarea.selectionStart,
+      "end"
+    );
+  }
+});
+function onload(){
+  closeEditor();
+  populatePageList()
+}
+onload();
+</script>
