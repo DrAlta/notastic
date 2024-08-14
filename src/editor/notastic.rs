@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::Note;
 
-pub struct Editor {
+pub struct Notastic {
     pub notes: HashMap<Uuid, Note>,
-    pub note_editor: Option<(Uuid, text_editor::Content)>,
+    pub note_editor: Option<(Uuid, String, text_editor::Content)>,
 }

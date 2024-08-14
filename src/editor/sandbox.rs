@@ -1,11 +1,14 @@
 use std::collections::HashMap;
 
-use iced::{widget::{row, text_editor}, Sandbox};
+use iced::{
+    widget::{row, text_editor},
+    Sandbox,
+};
 use qol::logy;
 
-use crate::{Editor, Message};
+use crate::{Message, Notastic, Note};
 
-impl Sandbox for Editor {
+impl Sandbox for Notastic {
     type Message = Message;
 
     fn new() -> Self {
@@ -17,10 +20,10 @@ impl Sandbox for Editor {
             }
         };
 
-        Self { 
+        Self {
             notes,
             note_editor: None,
-         }
+        }
     }
 
     fn title(&self) -> String {
@@ -31,32 +34,87 @@ impl Sandbox for Editor {
         match message {
             Message::CautiouLoadNoteInEditor(uuid) => {
                 logy!("cautiou_load_note", "told to open note: {uuid}");
-                if let Some((old_uuid, note_body)) = &self.note_editor {
+                if let Some((old_uuid, _, note_body)) = &self.note_editor {
                     if let Some(old_note) = self.notes.get(&old_uuid) {
                         let new_body = note_body.text();
                         let new = new_body.trim();
                         let old = old_note.body.trim();
                         if old != new {
-                            logy!("cautiou_load_note", "{:?}\n!=\n{:?}", note_body.text(), old_note.body);
+                            logy!(
+                                "cautiou_load_note",
+                                "{:?}\n!=\n{:?}",
+                                note_body.text(),
+                                old_note.body
+                            );
                             return;
                         }
                     }
                 };
                 match self.notes.get(&uuid) {
                     Some(note) => {
-                        self.note_editor = Some((uuid, text_editor::Content::with_text(&note.body)));
-                    },
-                    None => {logy!("error", "Failed to get note {uuid}")},
+                        self.note_editor =
+                            Some((uuid, note.title.clone(), text_editor::Content::with_text(&note.body)));
+                    }
+                    None => {
+                        logy!("error", "Failed to get note {uuid}")
+                    }
                 }
- 
-            },
+            }
             Message::Edit(action) => {
                 println!("got edit message");
-                let Some((_, note_body))= &mut self.note_editor else {
+                let Some((_, _, note_body)) = &mut self.note_editor else {
                     logy!("trace", "got an Edit message but no editor is open");
-                    return
+                    return;
                 };
                 note_body.perform(action);
+            },
+            Message::SaveNote => {
+                let Some((uuid, title, editor_body)) = &mut self.note_editor else {
+                    logy!("trace", "Got SaveNote but no note is open");
+                    return;
+                };
+                if let Some(old_note) = self.notes.get_mut(uuid) {
+                    let new_body = editor_body.text();
+                    let new = new_body.trim();
+                    let old = old_note.body.trim();
+                    if old == new {
+                        logy!(
+                            "trace",
+                            "no changes just closing the editor"
+                        );
+                        self.note_editor = None;
+                        return;
+                    }
+                    old_note.body_history.push(old.to_owned());
+                    old_note.body = new.to_owned();
+                    std::mem::swap(&mut old_note.title, title);
+                    self.note_editor = None;
+                    return;
+                } else {
+                    logy!("trace", "saving note '{title}':{uuid}");
+                    let ugly_hack = None; 
+                    let old_editor = std::mem::replace(&mut self.note_editor, ugly_hack);
+                    let Some((uuid, title, editor_body)) = old_editor else {
+                        logy!("error", "the note editor has disappered on us!");
+                        return;
+                    };
+                    self.notes.insert(
+                        uuid, 
+                        Note::new(
+                            title, 
+                            editor_body.text(), 
+                            Vec::new()
+                        )
+                    );
+                    self.note_editor = None;
+                }
+            },
+            Message::TitleChanged(new_title) => {
+                let Some((_, title, _)) = &mut self.note_editor else {
+                    logy!("trace", "got an TitleChanged message but no editor is open");
+                    return;
+                };        
+                *title = new_title;        
             },
         }
     }
@@ -65,7 +123,6 @@ impl Sandbox for Editor {
         let nav = self.nav_veiw();
         let note_editor = self.note_editor_veiw();
         row!(nav, note_editor).into()
-
     }
 
     fn theme(&self) -> iced::Theme {

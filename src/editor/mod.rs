@@ -1,5 +1,5 @@
-mod editor;
-pub use editor::Editor;
+mod notastic;
+pub use notastic::Notastic;
 
 mod sandbox;
 

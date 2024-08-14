@@ -1,13 +1,23 @@
-use iced::{widget::{column, container, horizontal_space, row, text, text_editor}, Length};
+use iced::{
+    widget::{button, column, container, horizontal_space, row, text, text_editor, text_input},
+    Length,
+};
 
-use crate::{Editor, Message, SPACING};
+use crate::{Notastic, Message, SPACING};
 
-
-impl Editor {
+impl Notastic {
     pub fn note_editor_veiw(&self) -> container::Container<Message> {
-        let Some((_, note_body))= &self.note_editor else {
-            return container::Container::new(iced::widget::Space::new(Length::Fill, Length::Fill))
+        let Some((_uuid, title, note_body)) = &self.note_editor else {
+            return container::Container::new(iced::widget::Space::new(Length::Fill, Length::Fill));
         };
+
+        let editor_title = text_input("enter note title here", title)
+            .on_input(Message::TitleChanged);
+
+        let save_button = button(text("Save")).on_press(Message::SaveNote);
+
+        let title_bar = row!(editor_title, save_button);
+
         let editor_body = text_editor(note_body)
             .height(Length::Fill)
             .on_action(Message::Edit);
@@ -19,10 +29,8 @@ impl Editor {
         };
 
 
-        let status_bar =  row!(horizontal_space(), position).spacing(SPACING);
+        let status_bar = row!(horizontal_space(), position).spacing(SPACING);
 
-        container(column!(editor_body, status_bar)).padding(SPACING)
+        container(column!(title_bar, editor_body, status_bar)).padding(SPACING)
     }
-
 }
-
