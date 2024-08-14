@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
 use iced::{
-    widget::{row, text_editor},
-    Sandbox,
+    executor, widget::{row, text_editor}, Application, Command, Theme
 };
 use qol::logy;
 use uuid::Uuid;
@@ -41,10 +40,17 @@ impl Notastic {
     }
 }
 
-impl Sandbox for Notastic {
+impl Application for Notastic {
     type Message = Message;
 
-    fn new() -> Self {
+    type Executor = executor::Default;
+    
+    type Theme = Theme;
+    
+    type Flags = ();
+
+
+    fn new(_flags:()) -> (Self, Command<Message>) {
         let notes = match crate::load_notes_from_json("./test_notes.json") {
             Ok(ok) => ok,
             Err(err) => {
@@ -53,20 +59,21 @@ impl Sandbox for Notastic {
             }
         };
 
-        Self {
+        (Self {
             drag_state: DragState::NotDragging,
             nav_size: 200.0,
             notes,
             note_editor: None,
             filter_title_open: "".to_owned(),
-        }
+        },
+        Command::none())
     }
 
     fn title(&self) -> String {
         "Notastic!".into()
     }
 
-    fn update(&mut self, message: Self::Message) {
+    fn update(&mut self, message: Self::Message) -> Command<Message> {
         match message {
             Message::CautiouLoadNoteInEditor(uuid) => {
                 logy!("cautiou_load_note", "told to open note: {uuid}");
@@ -124,17 +131,17 @@ impl Sandbox for Notastic {
                 println!("got edit message");
                 let Some((_, _, note_body)) = &mut self.note_editor else {
                     logy!("trace", "got an Edit message but no editor is open");
-                    return;
+                    return Command::none();
                 };
                 note_body.perform(action);
             }
             Message::ExportButtonPressed => {
-                self.update(Message::ExportJson("./notes.json".to_owned()))
+                return self.update(Message::ExportJson("./notes.json".to_owned()));
             }
             Message::ExportJson(path) => {
                 logy!("trace", "exporting to {path}");
                 let Err(err) = crate::save_notes_to_json(path, &self.notes) else {
-                    return;
+                    return Command::none();
                 };
                 logy!("error", "failed to export notes JSON with:{err}");
             }
@@ -142,7 +149,7 @@ impl Sandbox for Notastic {
                 self.filter_title_open = title;
             }
             Message::ImportButtonPressed => {
-                self.update(Message::ImportJson("./notes.json".to_owned()))
+                return self.update(Message::ImportJson("./notes.json".to_owned()));
             }
             Message::ImportJson(path) => {
                 logy!("trace", "importing from {path}");
@@ -158,7 +165,7 @@ impl Sandbox for Notastic {
             Message::SaveNote => {
                 let Some((uuid, title, editor_body)) = &mut self.note_editor else {
                     logy!("trace", "Got SaveNote but no note is open");
-                    return;
+                    return Command::none();
                 };
                 if let Some(old_note) = self.notes.get_mut(uuid) {
                     let new_body = editor_body.text();
@@ -167,20 +174,20 @@ impl Sandbox for Notastic {
                     if old == new {
                         logy!("trace", "no changes just closing the editor");
                         self.note_editor = None;
-                        return;
+                        return Command::none();
                     }
                     old_note.body_history.push(old.to_owned());
                     old_note.body = new.to_owned();
                     std::mem::swap(&mut old_note.title, title);
                     self.note_editor = None;
-                    return;
+                    return Command::none();
                 } else {
                     logy!("trace", "saving note '{title}':{uuid}");
                     let ugly_hack = None;
                     let old_editor = std::mem::replace(&mut self.note_editor, ugly_hack);
                     let Some((uuid, title, editor_body)) = old_editor else {
                         logy!("error", "the note editor has disappered on us!");
-                        return;
+                        return Command::none();
                     };
                     self.notes
                         .insert(uuid, Note::new(title, editor_body.text(), Vec::new()));
@@ -190,11 +197,12 @@ impl Sandbox for Notastic {
             Message::TitleChanged(new_title) => {
                 let Some((_, title, _)) = &mut self.note_editor else {
                     logy!("trace", "got an TitleChanged message but no editor is open");
-                    return;
+                    return Command::none();
                 };
                 *title = new_title;
             }
         }
+        Command::none()
     }
 
     fn view(&self) -> iced::Element<'_, Self::Message> {
@@ -206,4 +214,5 @@ impl Sandbox for Notastic {
     fn theme(&self) -> iced::Theme {
         iced::Theme::Dark
     }
+    
 }

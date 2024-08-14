@@ -1,6 +1,6 @@
 mod notastic;
 pub use notastic::Notastic;
 
-mod sandbox;
+mod application;
 
 pub mod view;

@@ -1,4 +1,4 @@
-use iced::{Sandbox, Settings};
+use iced::{Application, Settings};
 
 mod editor;
 use editor::Notastic;
@@ -33,5 +33,5 @@ pub enum DragState {
 }
 
 fn main() {
-    println!("{:?}", <Notastic as Sandbox>::run(Settings::default()));
+    println!("{:?}", <Notastic as Application>::run(Settings::default()));
 }
