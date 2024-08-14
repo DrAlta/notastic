@@ -3,7 +3,7 @@ use iced::{
     Length,
 };
 
-use crate::{Notastic, Message, SPACING};
+use crate::{Message, Notastic, SPACING};
 
 impl Notastic {
     pub fn note_editor_veiw(&self) -> container::Container<Message> {
@@ -11,8 +11,8 @@ impl Notastic {
             return container::Container::new(iced::widget::Space::new(Length::Fill, Length::Fill));
         };
 
-        let editor_title = text_input("enter note title here", title)
-            .on_input(Message::TitleChanged);
+        let editor_title =
+            text_input("enter note title here", title).on_input(Message::TitleChanged);
 
         let save_button: button::Button<Message> = button(text("Save")).on_press(Message::SaveNote);
 
@@ -27,7 +27,6 @@ impl Notastic {
 
             text(format!("{}:{}", line + 1, column + 1))
         };
-
 
         let status_bar = row!(horizontal_space(), position).spacing(SPACING);
 

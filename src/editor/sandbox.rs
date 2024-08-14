@@ -29,13 +29,14 @@ impl Notastic {
         };
         match self.notes.get(&uuid) {
             Some(note) => {
-                self.note_editor =
-                    Some((uuid, note.title.clone(), text_editor::Content::with_text(&note.body)));
+                self.note_editor = Some((
+                    uuid,
+                    note.title.clone(),
+                    text_editor::Content::with_text(&note.body),
+                ));
                 true
             }
-            None => {
-                false
-            }
+            None => false,
         }
     }
 }
@@ -72,15 +73,13 @@ impl Sandbox for Notastic {
                 }
             }
             Message::CreateOpen => {
-                let mut old_notes_uuids = self.notes.iter().filter_map(
-                    |(old_uuid, note)| {
-                        if note.title.trim() == self.filter_title_open.trim() {
-                            Some(old_uuid.clone())
-                        } else {
-                            None 
-                        }
+                let mut old_notes_uuids = self.notes.iter().filter_map(|(old_uuid, note)| {
+                    if note.title.trim() == self.filter_title_open.trim() {
+                        Some(old_uuid.clone())
+                    } else {
+                        None
                     }
-                );
+                });
                 let loaded_old_note_ka = if let Some(old_notes_uuid) = old_notes_uuids.next() {
                     self.cautions_load_note_in_editor(old_notes_uuid)
                 } else {
@@ -90,9 +89,13 @@ impl Sandbox for Notastic {
                     logy!("trace", "loaded old note instead of creating new");
                 } else {
                     let uuid = Uuid::new_v4();
-                    self.note_editor = Some((uuid, self.filter_title_open.clone(), text_editor::Content::with_text("")))
+                    self.note_editor = Some((
+                        uuid,
+                        self.filter_title_open.clone(),
+                        text_editor::Content::with_text(""),
+                    ))
                 }
-            },
+            }
             Message::Edit(action) => {
                 println!("got edit message");
                 let Some((_, _, note_body)) = &mut self.note_editor else {
@@ -100,30 +103,34 @@ impl Sandbox for Notastic {
                     return;
                 };
                 note_body.perform(action);
-            },
+            }
             Message::ExportButtonPressed => {
                 self.update(Message::ExportJson("./notes.json".to_owned()))
-            },
+            }
             Message::ExportJson(path) => {
+                logy!("trace", "exporting to {path}");
                 let Err(err) = crate::save_notes_to_json(path, &self.notes) else {
                     return;
                 };
                 logy!("error", "failed to export notes JSON with:{err}");
-            },
+            }
             Message::FilterCreateChanged(title) => {
-                self.filter_title_open = title;       
-            },
+                self.filter_title_open = title;
+            }
             Message::ImportButtonPressed => {
-                self.update(
-                    Message::ImportJson("./save_test_notes.json".to_owned())
-                )
-            },
+                self.update(Message::ImportJson("./notes.json".to_owned()))
+            }
             Message::ImportJson(path) => {
-                let Err(err) = crate::load_notes_from_json(path) else {
-                    return;
+                logy!("trace", "importing from {path}");
+                match crate::load_notes_from_json(path) {
+                    Ok(ok) => {
+                        self.notes = ok;
+                    }
+                    Err(err) => {
+                        logy!("error", "failed to import notes JSON with:{err}")
+                    }
                 };
-                logy!("error", "failed to import notes JSON with:{err}");
-            },
+            }
             Message::SaveNote => {
                 let Some((uuid, title, editor_body)) = &mut self.note_editor else {
                     logy!("trace", "Got SaveNote but no note is open");
@@ -134,10 +141,7 @@ impl Sandbox for Notastic {
                     let new = new_body.trim();
                     let old = old_note.body.trim();
                     if old == new {
-                        logy!(
-                            "trace",
-                            "no changes just closing the editor"
-                        );
+                        logy!("trace", "no changes just closing the editor");
                         self.note_editor = None;
                         return;
                     }
@@ -148,30 +152,24 @@ impl Sandbox for Notastic {
                     return;
                 } else {
                     logy!("trace", "saving note '{title}':{uuid}");
-                    let ugly_hack = None; 
+                    let ugly_hack = None;
                     let old_editor = std::mem::replace(&mut self.note_editor, ugly_hack);
                     let Some((uuid, title, editor_body)) = old_editor else {
                         logy!("error", "the note editor has disappered on us!");
                         return;
                     };
-                    self.notes.insert(
-                        uuid, 
-                        Note::new(
-                            title, 
-                            editor_body.text(), 
-                            Vec::new()
-                        )
-                    );
+                    self.notes
+                        .insert(uuid, Note::new(title, editor_body.text(), Vec::new()));
                     self.note_editor = None;
                 }
-            },
+            }
             Message::TitleChanged(new_title) => {
                 let Some((_, title, _)) = &mut self.note_editor else {
                     logy!("trace", "got an TitleChanged message but no editor is open");
                     return;
-                };        
-                *title = new_title;        
-            },
+                };
+                *title = new_title;
+            }
         }
     }
 

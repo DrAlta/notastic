@@ -29,4 +29,3 @@ const SPACING: u16 = 10;
 fn main() {
     println!("{:?}", <Notastic as Sandbox>::run(Settings::default()));
 }
-
