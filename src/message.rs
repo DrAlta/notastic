@@ -20,5 +20,6 @@ pub enum Message {
     ImportButtonPressed,
     LoadNotes(Result<Arc<HashMap<Uuid, Note>>, String>),
     SaveNote,
+    SaveToWikiResult,
     TitleChanged(String),
 }

@@ -2,13 +2,8 @@ use iced::{
     widget::{column, container, Column}, Border, Color, Length
 };
 
-use crate::{Message, Notastic, SPACING};
+use crate::{Message, Notastic, NoteDiv, SPACING};
 
-pub enum NoteDiv {
-    Div(String),
-    TemplateLoading{title:String},
-    Template{title:String, body:String, show_body: bool}
-}
 
 impl Notastic {
     pub fn note_veiwer_veiw(&self) -> container::Container<Message> {

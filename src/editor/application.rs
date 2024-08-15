@@ -6,7 +6,7 @@ use iced::{
 use qol::logy;
 use uuid::Uuid;
 
-use crate::{DragState, Message, Notastic, Note};
+use crate::{save_to_wiki, DragState, EditorState, Message, Notastic, Note};
 
 impl Application for Notastic {
     type Message = Message;
@@ -31,7 +31,7 @@ impl Application for Notastic {
             drag_state: DragState::NotDragging,
             nav_size: 200.0,
             notes,
-            note_editor: None,
+            note_editor: EditorState::Closed,
             filter_title_open: "".to_owned(),
         },
         Command::none())
@@ -66,11 +66,11 @@ impl Application for Notastic {
                     logy!("trace", "loaded old note instead of creating new");
                 } else {
                     let uuid = Uuid::new_v4();
-                    self.note_editor = Some((
+                    self.note_editor = EditorState::Uuid {
                         uuid,
-                        self.filter_title_open.clone(),
-                        text_editor::Content::with_text(""),
-                    ))
+                        title: self.filter_title_open.clone(),
+                        body: text_editor::Content::with_text(""),
+                    }
                 }
             }
             Message::DragEnd => {
@@ -97,11 +97,18 @@ impl Application for Notastic {
             },
             Message::Edit(action) => {
                 println!("got edit message");
-                let Some((_, _, note_body)) = &mut self.note_editor else {
-                    logy!("trace", "got an Edit message but no editor is open");
-                    return Command::none();
+                match &mut self.note_editor {
+                    EditorState::Closed => {
+                        logy!("trace", "got an Edit message but no editor is open");
+                        return Command::none();
+                    },
+                    EditorState::Uuid{uuid:_, title:_, body} => {
+                        body.perform(action);
+                    },
+                    EditorState::Wiki { title:_, body, baserevid:_, csrf:_, original_text:_ } => {
+                        body.perform(action);
+                    },
                 };
-                note_body.perform(action);
             }
             Message::ExportButtonPressed => {
                 return self.update(Message::ExportJson("./notes.json".to_owned()));
@@ -134,39 +141,82 @@ impl Application for Notastic {
                 logy!("error", "loaded to selec file ot load with {err}");
             }
             Message::SaveNote => {
-                let Some((uuid, title, editor_body)) = &mut self.note_editor else {
-                    logy!("trace", "Got SaveNote but no note is open");
-                    return Command::none();
-                };
-                if let Some(old_note) = self.notes.get_mut(uuid) {
-                    let new_body = editor_body.text();
-                    let new = new_body.trim();
-                    let old = old_note.body.trim();
-                    if old == new {
-                        logy!("trace", "no changes just closing the editor");
-                        self.note_editor = None;
+                //let Some((uuid, title, body)) = &mut self.note_editor else {
+                match &mut self.note_editor {
+                    EditorState::Closed => {
+                        logy!("trace", "Got SaveNote but no note is open");
                         return Command::none();
-                    }
-                    old_note.body_history.push(old.to_owned());
-                    old_note.body = new.to_owned();
-                    std::mem::swap(&mut old_note.title, title);
-                    self.note_editor = None;
-                    return Command::none();
-                } else {
-                    logy!("trace", "saving note '{title}':{uuid}");
-                    let ugly_hack = None;
-                    let old_editor = std::mem::replace(&mut self.note_editor, ugly_hack);
-                    let Some((uuid, title, editor_body)) = old_editor else {
-                        logy!("error", "the note editor has disappered on us!");
-                        return Command::none();
-                    };
-                    self.notes
-                        .insert(uuid, Note::new(title, editor_body.text(), Vec::new()));
-                    self.note_editor = None;
+                    },
+                    EditorState::Uuid { uuid, title, body } => {
+                        if let Some(old_note) = self.notes.get_mut(uuid) {
+                            let new_body = body.text();
+                            let new = new_body.trim();
+                            let old = old_note.body.trim();
+                            if old == new {
+                                logy!("trace", "no changes just closing the editor");
+                                self.note_editor = EditorState::Closed;
+                                return Command::none();
+                            }
+                            old_note.body_history.push(old.to_owned());
+                            old_note.body = new.to_owned();
+                            std::mem::swap(&mut old_note.title, title);
+                            self.note_editor = EditorState::Closed;
+                            return Command::none();
+                        } else {
+                            logy!("trace", "saving note '{title}':{uuid}");
+                            let ugly_hack = EditorState::Closed;
+                            let old_editor = std::mem::replace(&mut self.note_editor, ugly_hack);
+                            let EditorState::Uuid{uuid, title, body} = old_editor else {
+                                logy!("error", "the note editor has disappered on us!");
+                                return Command::none();
+                            };
+                            self.notes
+                                .insert(uuid, Note::new(title, body.text(), Vec::new()));
+                            self.note_editor = EditorState::Closed;
+                        }
+                    },
+                    EditorState::Wiki { title, body, baserevid, csrf: Some(token), original_text } => {
+                        logy!("trace", "saving to wiki '{title}'");
+                        let new_body = body.text();
+                        let new = new_body.trim();
+                        let old = original_text.trim();
+                        if old == new {
+                            logy!("trace", "no changes just closing the editor");
+                            self.note_editor = EditorState::Closed;
+                            return Command::none();
+                        }
+                        return Command::perform(save_to_wiki( title.clone(), new.to_owned(), baserevid.clone(), token.clone()), |_| Message::SaveToWikiResult)
+                    },
+                    EditorState::Wiki { title, body, baserevid:_, csrf: None, original_text } => {
+                        let uuid = Uuid::new_v4();
+                        logy!("trace", "saving wiki page locally '{title}':{uuid}");
+                        let new_body = body.text();
+                        let new = new_body.trim();
+                        let old = original_text.trim();
+                        if old == new {
+                            logy!("trace", "no changes just closing the editor");
+                            self.note_editor = EditorState::Closed;
+                            return Command::none();
+                        }
+
+                        let ugly_hack = EditorState::Closed;
+                        let old_editor = std::mem::replace(&mut self.note_editor, ugly_hack);
+                        let EditorState::Wiki { title, body, baserevid:_, csrf:_, original_text:_ } = old_editor else {
+                            logy!("error", "the note editor has disappered on us!");
+                            return Command::none();
+                        };
+                        self.notes
+                            .insert(uuid, Note::new(title, body.text(), Vec::new()));
+                        self.note_editor = EditorState::Closed;
+
+                    },
                 }
             }
+            Message::SaveToWikiResult => {
+                logy!("error", "Message::SaveToWikiResult not handled yet");
+            },
             Message::TitleChanged(new_title) => {
-                let Some((_, title, _)) = &mut self.note_editor else {
+                let EditorState::Uuid{uuid:_, title, body:_} = &mut self.note_editor else {
                     logy!("trace", "got an TitleChanged message but no editor is open");
                     return Command::none();
                 };
@@ -179,10 +229,10 @@ impl Application for Notastic {
     fn view(&self) -> iced::Element<'_, Self::Message> {
         let nav = self.nav_veiw();
 
-        let right_side = if self.note_editor.is_some() {
-            self.note_editor_veiw()
-        } else {
+        let right_side = if let EditorState::Closed = self.note_editor {
             self.note_veiwer_veiw()
+        } else {
+            self.note_editor_veiw()
         };
         row!(nav, right_side).into()
     }
