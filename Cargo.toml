@@ -8,7 +8,7 @@ serde = {  version = "1.0.203", features = ["derive"] }
 serde_jsonrc = "0.1.0"
 qol = { version = "0.1.11", git = "https://github.com/DrAlta/rust_quality_of_life.git"}
 lexical-sort = "0.3.1"
-iced = "0.12.1"
+iced = "0.13.1"
 fs-err = "2.11.0"
 rfd = "0.14.1"
 nom = "7.1.3"

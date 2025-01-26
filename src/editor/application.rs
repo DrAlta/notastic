@@ -1,24 +1,15 @@
 use std::{collections::HashMap, sync::Arc};
 
-use iced::{
-    executor, widget::{row, text_editor}, Application, Command, Theme
-};
+use iced::widget::{row, text_editor};
 use qol::logy;
 use uuid::Uuid;
 
 use crate::{save_to_wiki, DragState, EditorState, Message, Notastic, Note};
 
-impl Application for Notastic {
-    type Message = Message;
-
-    type Executor = executor::Default;
-    
-    type Theme = Theme;
-    
-    type Flags = ();
+impl Notastic {
 
 
-    fn new(_flags:()) -> (Self, Command<Message>) {
+    pub fn new(_flags:()) -> (Self, iced::Task<Message>) {
         let notes = match crate::load_notes_from_json("./test_notes.json") {
             Ok(ok) => ok,
             Err(err) => {
@@ -27,21 +18,19 @@ impl Application for Notastic {
             }
         };
 
-        (Self {
-            drag_state: DragState::NotDragging,
-            nav_size: 200.0,
-            notes,
-            note_editor: EditorState::Closed,
-            filter_title_open: "".to_owned(),
-        },
-        Command::none())
+        (
+            Self {
+                drag_state: DragState::NotDragging,
+                nav_size: 200.0,
+                notes,
+                note_editor: EditorState::Closed,
+                filter_title_open: "".to_owned(),
+            },
+            iced::Task::none()
+        )
     }
 
-    fn title(&self) -> String {
-        "Notastic!".into()
-    }
-
-    fn update(&mut self, message: Self::Message) -> Command<Message> {
+    pub fn update(&mut self, message: Message) -> iced::Task<Message>{
         match message {
             Message::CautiouLoadNoteInEditor(uuid) => {
                 logy!("cautiou_load_note", "told to open note: {uuid}");
@@ -100,7 +89,7 @@ impl Application for Notastic {
                 match &mut self.note_editor {
                     EditorState::Closed => {
                         logy!("trace", "got an Edit message but no editor is open");
-                        return Command::none();
+                        return iced::Task::none();
                     },
                     EditorState::Uuid{uuid:_, title:_, body} => {
                         body.perform(action);
@@ -116,7 +105,7 @@ impl Application for Notastic {
             Message::ExportJson(path) => {
                 logy!("trace", "exporting to {path}");
                 let Err(err) = crate::save_notes_to_json(path, &self.notes) else {
-                    return Command::none();
+                    return iced::Task::none();
                 };
                 logy!("error", "failed to export notes JSON with:{err}");
             }
@@ -124,12 +113,12 @@ impl Application for Notastic {
                 self.filter_title_open = title;
             }
             Message::ImportButtonPressed => {
-                return Command::perform(Notastic::pick_file(), Message::LoadNotes)
+                return iced::Task::perform(Notastic::pick_file(), Message::LoadNotes)
             }
             Message::LoadNotes(Ok(mut notes)) => {
                 logy!("trace", "trying to import notes");
                 let Some(x) = Arc::get_mut(&mut notes) else {
-                    return Command::none();
+                    return iced::Task::none();
                 };
                 let ugly_hack = HashMap::new();
                 let notes = std::mem::replace(x, ugly_hack);
@@ -145,7 +134,7 @@ impl Application for Notastic {
                 match &mut self.note_editor {
                     EditorState::Closed => {
                         logy!("trace", "Got SaveNote but no note is open");
-                        return Command::none();
+                        return iced::Task::none();
                     },
                     EditorState::Uuid { uuid, title, body } => {
                         if let Some(old_note) = self.notes.get_mut(uuid) {
@@ -155,20 +144,20 @@ impl Application for Notastic {
                             if old == new {
                                 logy!("trace", "no changes just closing the editor");
                                 self.note_editor = EditorState::Closed;
-                                return Command::none();
+                                return iced::Task::none();
                             }
                             old_note.body_history.push(old.to_owned());
                             old_note.body = new.to_owned();
                             std::mem::swap(&mut old_note.title, title);
                             self.note_editor = EditorState::Closed;
-                            return Command::none();
+                            return iced::Task::none();
                         } else {
                             logy!("trace", "saving note '{title}':{uuid}");
                             let ugly_hack = EditorState::Closed;
                             let old_editor = std::mem::replace(&mut self.note_editor, ugly_hack);
                             let EditorState::Uuid{uuid, title, body} = old_editor else {
                                 logy!("error", "the note editor has disappered on us!");
-                                return Command::none();
+                                return iced::Task::none();
                             };
                             self.notes
                                 .insert(uuid, Note::new(title, body.text(), Vec::new()));
@@ -183,9 +172,9 @@ impl Application for Notastic {
                         if old == new {
                             logy!("trace", "no changes just closing the editor");
                             self.note_editor = EditorState::Closed;
-                            return Command::none();
+                            return iced::Task::none();
                         }
-                        return Command::perform(save_to_wiki( title.clone(), new.to_owned(), baserevid.clone(), token.clone()), |_| Message::SaveToWikiResult)
+                        return iced::Task::perform(save_to_wiki( title.clone(), new.to_owned(), baserevid.clone(), token.clone()), |_| Message::SaveToWikiResult)
                     },
                     EditorState::Wiki { title, body, baserevid:_, csrf: None, original_text } => {
                         let uuid = Uuid::new_v4();
@@ -196,14 +185,14 @@ impl Application for Notastic {
                         if old == new {
                             logy!("trace", "no changes just closing the editor");
                             self.note_editor = EditorState::Closed;
-                            return Command::none();
+                            return iced::Task::none();
                         }
 
                         let ugly_hack = EditorState::Closed;
                         let old_editor = std::mem::replace(&mut self.note_editor, ugly_hack);
                         let EditorState::Wiki { title, body, baserevid:_, csrf:_, original_text:_ } = old_editor else {
                             logy!("error", "the note editor has disappered on us!");
-                            return Command::none();
+                            return iced::Task::none();
                         };
                         self.notes
                             .insert(uuid, Note::new(title, body.text(), Vec::new()));
@@ -218,15 +207,15 @@ impl Application for Notastic {
             Message::TitleChanged(new_title) => {
                 let EditorState::Uuid{uuid:_, title, body:_} = &mut self.note_editor else {
                     logy!("trace", "got an TitleChanged message but no editor is open");
-                    return Command::none();
+                    return iced::Task::none();
                 };
                 *title = new_title;
             }
         }
-        Command::none()
+        iced::Task::none()
     }
 
-    fn view(&self) -> iced::Element<'_, Self::Message> {
+    pub fn view(&self) -> iced::Element<'_, Message> {
         let nav = self.nav_veiw();
 
         let right_side = if let EditorState::Closed = self.note_editor {
@@ -236,9 +225,4 @@ impl Application for Notastic {
         };
         row!(nav, right_side).into()
     }
-
-    fn theme(&self) -> iced::Theme {
-        iced::Theme::Dark
-    }
-    
 }
