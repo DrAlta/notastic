@@ -1,44 +1,22 @@
 use std::{collections::HashMap, sync::Arc};
 
-use iced::widget::{row, text_editor};
+use iced::widget::text_editor;
 use qol::logy;
 use uuid::Uuid;
 
-use crate::{save_to_wiki, DragState, EditorState, Message, Notastic, Note};
+use crate::{json, notastic::update::save_to_wiki, DragState, EditorState, Message, Notastic, Note};
 
-impl Notastic {
-
-
-    pub fn new(_flags:()) -> (Self, iced::Task<Message>) {
-        let notes = match crate::load_notes_from_json("./test_notes.json") {
-            Ok(ok) => ok,
-            Err(err) => {
-                logy!("error", "failed to load notes.json with {err}");
-                HashMap::new()
-            }
-        };
-
-        (
-            Self {
-                drag_state: DragState::NotDragging,
-                nav_size: 200.0,
-                notes,
-                note_editor: EditorState::Closed,
-                filter_title_open: "".to_owned(),
-            },
-            iced::Task::none()
-        )
-    }
-
+impl Notastic{
     pub fn update(&mut self, message: Message) -> iced::Task<Message>{
         match message {
-            Message::CautiouLoadNoteInEditor(uuid) => {
-                logy!("cautiou_load_note", "told to open note: {uuid}");
-                if !self.cautions_load_note_in_editor(uuid) {
+            Message::CautiousLoadNoteInEditor(uuid) => {
+                logy!("cautious_load_note", "told to open note: {uuid}");
+                if !self.cautious_load_note_in_editor(uuid) {
                     logy!("error", "Failed to get note {uuid}");
                 }
             }
             Message::CreateOpen => {
+                // find all the notes with the title
                 let mut old_notes_uuids = self.notes.iter().filter_map(|(old_uuid, note)| {
                     if note.title.trim() == self.filter_title_open.trim() {
                         Some(old_uuid.clone())
@@ -46,14 +24,20 @@ impl Notastic {
                         None
                     }
                 });
+                // this tries to load the first note with a matching title into 
+                // the veiwer; `loaded_old_note_ka` will be true if it was load,
+                // false if it wasn't/  the reasons it failed was the note 
+                // didn't exist or there was an unsaved note in the editor
                 let loaded_old_note_ka = if let Some(old_notes_uuid) = old_notes_uuids.next() {
-                    self.cautions_load_note_in_editor(old_notes_uuid)
+                    self.cautious_load_note_in_veiwer(old_notes_uuid)
                 } else {
                     false
                 };
                 if loaded_old_note_ka {
                     logy!("trace", "loaded old note instead of creating new");
                 } else {
+                    // there wasn't any old notes with the title so creating a 
+                    // new one
                     let uuid = Uuid::new_v4();
                     self.note_editor = EditorState::Uuid {
                         uuid,
@@ -104,7 +88,7 @@ impl Notastic {
             }
             Message::ExportJson(path) => {
                 logy!("trace", "exporting to {path}");
-                let Err(err) = crate::save_notes_to_json(path, &self.notes) else {
+                let Err(err) = json::save_notes_to_json(path, &self.notes) else {
                     return iced::Task::none();
                 };
                 logy!("error", "failed to export notes JSON with:{err}");
@@ -120,14 +104,13 @@ impl Notastic {
                 let Some(x) = Arc::get_mut(&mut notes) else {
                     return iced::Task::none();
                 };
-                let ugly_hack = HashMap::new();
-                let notes = std::mem::replace(x, ugly_hack);
+                let notes = std::mem::replace(x, HashMap::new());
                 self.notes = notes;
                 logy!("trace", "successfully imported notes");
                 
             }
             Message::LoadNotes(Err(err)) => {
-                logy!("error", "loaded to selec file ot load with {err}");
+                logy!("error", "failed to load notes from file with {err}");
             }
             Message::SaveNote => {
                 //let Some((uuid, title, body)) = &mut self.note_editor else {
@@ -142,7 +125,7 @@ impl Notastic {
                             let new = new_body.trim();
                             let old = old_note.body.trim();
                             if old == new {
-                                logy!("trace", "no changes just closing the editor");
+                                logy!("trace", "no changes in editor; just closing the editor");
                                 self.note_editor = EditorState::Closed;
                                 return iced::Task::none();
                             }
@@ -153,8 +136,7 @@ impl Notastic {
                             return iced::Task::none();
                         } else {
                             logy!("trace", "saving note '{title}':{uuid}");
-                            let ugly_hack = EditorState::Closed;
-                            let old_editor = std::mem::replace(&mut self.note_editor, ugly_hack);
+                            let old_editor = std::mem::replace(&mut self.note_editor, EditorState::Closed);
                             let EditorState::Uuid{uuid, title, body} = old_editor else {
                                 logy!("error", "the note editor has disappered on us!");
                                 return iced::Task::none();
@@ -188,8 +170,7 @@ impl Notastic {
                             return iced::Task::none();
                         }
 
-                        let ugly_hack = EditorState::Closed;
-                        let old_editor = std::mem::replace(&mut self.note_editor, ugly_hack);
+                        let old_editor = std::mem::replace(&mut self.note_editor, EditorState::Closed);
                         let EditorState::Wiki { title, body, baserevid:_, csrf:_, original_text:_ } = old_editor else {
                             logy!("error", "the note editor has disappered on us!");
                             return iced::Task::none();
@@ -213,16 +194,5 @@ impl Notastic {
             }
         }
         iced::Task::none()
-    }
-
-    pub fn view(&self) -> iced::Element<'_, Message> {
-        let nav = self.nav_veiw();
-
-        let right_side = if let EditorState::Closed = self.note_editor {
-            self.note_veiwer_veiw()
-        } else {
-            self.note_editor_veiw()
-        };
-        row!(nav, right_side).into()
     }
 }

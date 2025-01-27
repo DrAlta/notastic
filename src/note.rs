@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 //use uuid::Uuid;
 
-use crate::json_note::JsonNote;
+use crate::json::JsonNote;
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 pub struct Note {

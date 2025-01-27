@@ -1,6 +1,6 @@
 use iced::{widget::{button, column, mouse_area, row, scrollable, text, text_input, vertical_rule, Column, MouseArea}, Length};
 
-use crate::{generate_lookup, Message, Notastic};
+use crate::{notastic::view::nav::generate_lookup, Message, Notastic};
 
 impl Notastic {
     pub fn nav_veiw(&self) -> Column<Message> {
@@ -15,7 +15,7 @@ impl Notastic {
         let lookup = generate_lookup(&self.notes);
         let children = lookup.into_iter().map(|(title, uuid)| {
             MouseArea::new(text(title))
-                .on_release(Message::CautiouLoadNoteInEditor(uuid.clone()))
+                .on_release(Message::CautiousLoadNoteInEditor(uuid.clone()))
                 .into()
         });
 

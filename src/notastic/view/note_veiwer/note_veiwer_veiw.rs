@@ -1,10 +1,10 @@
-use std::sync::LazyLock;
-
 use iced::{
     widget::{container, span, text::Rich}, Color, Length
 };
 
-use crate::{Message, Notastic, NoteDiv, SPACING};
+use crate::{NoteDiv, Message, Notastic, SPACING};
+/*
+use std::sync::LazyLock;
 
 static FOO: LazyLock<Option<Vec<NoteDiv>>> =LazyLock::new(||Some(vec![
     NoteDiv::Div("First".into()),
@@ -22,13 +22,15 @@ static FOO: LazyLock<Option<Vec<NoteDiv>>> =LazyLock::new(||Some(vec![
         show_body: false
     }
 ]));
+*/
 impl Notastic {
     pub fn note_veiwer_veiw(&self) -> container::Container<Message> {
-        let Some(divs) =  &*FOO else {
+
+        let Some(divs) =  &self.veiw_state else {
             return container::Container::new(iced::widget::Space::new(Length::Fill, Length::Fill));
         };
 
-        let spans: Vec<_> = divs.iter().map(|div| -> iced::widget::text::Span<Message,iced::Font>{
+        let spans: Rich<Message> = divs.iter().map(|div| -> iced::widget::text::Span<Message,iced::Font>{
             match div {
                 NoteDiv::Div(text) => {
                     span(text)
@@ -51,6 +53,6 @@ impl Notastic {
             }
         }).collect();
 
-        container(Rich::with_spans(spans)).padding(SPACING)
+        container(spans).padding(SPACING)
     }
 }

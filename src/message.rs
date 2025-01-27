@@ -7,7 +7,7 @@ use crate::Note;
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    CautiouLoadNoteInEditor(Uuid),
+    CautiousLoadNoteInEditor(Uuid),
     CreateOpen,
     DragEnd,
     Dragging(Point),
