@@ -37,7 +37,7 @@ impl Notastic {
             iced::Task::none()
         )
     }
-    /// this check the note_editor state
+    /// this checks the note_editor state
     /// if it's EditorState::Uuid or EditorState::Wiki then it checks if 
     /// the note's body is the same as the body being edited if it's diffrent 
     /// then it returns false
@@ -63,7 +63,7 @@ impl Notastic {
                     }
                 }
             }
-            EditorState::Closed => todo!(),
+            EditorState::Closed => (),
             EditorState::Wiki { title:_, body, baserevid:_, csrf:_, original_text } => {
                 let new_body = body.text();
                 let new = new_body.trim();
